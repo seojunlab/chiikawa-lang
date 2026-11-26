@@ -110,3 +110,83 @@ export function parse(source: string): Op[] {
   }
   return ops;
 }
+
+export const TAPE_SIZE = 30000;
+
+export interface MachineIO {
+  /** 다음 입력 바이트. 입력이 끝났으면 null. */
+  input?: () => number | null;
+  output?: (byte: number) => void;
+}
+
+export interface MachineState {
+  tape: Uint8Array;
+  ptr: number;
+}
+
+export class Machine {
+  tape: Uint8Array;
+  ptr: number;
+  pc = 0;
+  halted = false;
+  private program: Op[];
+  private io: MachineIO;
+
+  constructor(program: Op[], io: MachineIO = {}, state?: MachineState) {
+    this.program = program;
+    this.io = io;
+    this.tape = state?.tape ?? new Uint8Array(TAPE_SIZE);
+    this.ptr = state?.ptr ?? 0;
+  }
+
+  /** 명령을 budget개까지 실행한다. 다 못 끝냈으면 'paused'를 돌려주고, 다시 부르면 이어서 한다. */
+  run(budget = Infinity): 'done' | 'paused' {
+    const { program, tape, io } = this;
+    while (!this.halted && this.pc < program.length) {
+      if (budget-- <= 0) return 'paused';
+      const op = program[this.pc];
+      switch (op.kind) {
+        case 'add':
+          tape[this.ptr] += op.n; // Uint8Array라서 0~255로 돌아간다
+          break;
+        case 'move': {
+          const to = this.ptr + op.n;
+          if (to < 0 || to >= tape.length) {
+            throw new ChiikawaError(`테이프 밖으로 나가버렸다 (${to}번 칸)`, op.line, op.col);
+          }
+          this.ptr = to;
+          break;
+        }
+        case 'out':
+          for (let k = 0; k < op.n; k++) io.output?.(tape[this.ptr]);
+          break;
+        case 'in':
+          for (let k = 0; k < op.n; k++) tape[this.ptr] = io.input?.() ?? 0;
+          break;
+        case 'open':
+          if (tape[this.ptr] === 0) this.pc = op.n;
+          break;
+        case 'close':
+          if (tape[this.ptr] !== 0) this.pc = op.n;
+          break;
+        case 'halt':
+          this.halted = true;
+          break;
+      }
+      this.pc++;
+    }
+    return 'done';
+  }
+}
+
+/** 프로그램을 끝까지 돌리고 출력을 UTF-8로 해석해 돌려준다. */
+export function run(source: string, input: string | Uint8Array = ''): string {
+  const bytes = typeof input === 'string' ? new TextEncoder().encode(input) : input;
+  let at = 0;
+  const out: number[] = [];
+  new Machine(parse(source), {
+    input: () => (at < bytes.length ? bytes[at++] : null),
+    output: (b) => out.push(b),
+  }).run();
+  return new TextDecoder().decode(new Uint8Array(out));
+}
