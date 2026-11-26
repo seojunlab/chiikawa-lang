@@ -50,7 +50,7 @@
 
 ## 내가 정한 것 (사용자가 고른 게 아님)
 
-- TypeScript, Node 22 이상. 런타임 의존성 없음, 개발 의존성은 `typescript` 하나.
+- TypeScript, Node 22.18 이상. 런타임 의존성 없음, 개발 의존성은 `typescript`와 `@types/node`.
 - 파일 확장자 `.chiikawa`.
 - 칸 30,000개·8비트·입력 끝 = 0 (Brainfuck 관례).
 - 모르는 글자는 무시하지 않고 오류.
