@@ -1,0 +1,22 @@
+{
+  "name": "chiikawa-lang",
+  "version": "0.1.0",
+  "description": "치이카와 밈 기반 비공식 장난감 프로그래밍 언어",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22.18"
+  },
+  "bin": {
+    "chiikawa": "dist/cli.js"
+  },
+  "scripts": {
+    "test": "node --test",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json && node scripts/build-playground.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.7",
+    "typescript": "^7.0.2"
+  }
+}
