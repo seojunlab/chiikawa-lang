@@ -118,3 +118,9 @@ npm run build       # dist/ 와 docs/index.html 을 다시 만든다
 - `src/core.ts`: 해석기 전체. 아무것도 import하지 않아서 브라우저에서도 그대로 돕니다.
 - `src/cli.ts`: 터미널용 명령.
 - `playground/index.html`: 플레이그라운드 템플릿. `npm run build`가 여기에 core와 예제를 끼워 넣어 `docs/index.html`을 만듭니다. 템플릿이나 `src/core.ts`, 예제를 고쳤으면 다시 빌드해서 `docs/index.html`도 같이 커밋하세요.
+
+## 라이선스
+
+라이선스가 없습니다. Copyright © 2026 seojunlab. All rights reserved.
+
+이 저장소의 코드와 문서는 공개되어 있어 읽을 수 있지만, 저작권자의 허락 없이 복제·수정·배포·재사용할 수 없습니다. 쓰고 싶다면 먼저 이슈로 문의해 주세요.

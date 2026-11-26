@@ -4,6 +4,7 @@
   "description": "치이카와 밈 기반 비공식 장난감 프로그래밍 언어",
   "type": "module",
   "private": true,
+  "license": "UNLICENSED",
   "engines": {
     "node": ">=22.18"
   },
