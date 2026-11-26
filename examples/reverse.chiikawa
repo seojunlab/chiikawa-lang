@@ -1,5 +1,5 @@
-# 입력을 거꾸로 말한다.
-#   printf abc | chiikawa run examples/reverse.chiikawa   →  cba
+# 입력을 거꾸로 말한다. 바이트 단위로 뒤집기 때문에 한글을 넣으면 글자가 깨진다.
+#   printf chiikawa | chiikawa run examples/reverse.chiikawa   →  awakiihc
 
 우라 하?            # 0번 칸은 비워 두고 1번 칸부터 듣는다
 라는 거?!           # 입력이 끝날 때까지

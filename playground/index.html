@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>chiikawa-lang 플레이그라운드</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Jua&family=Nanum+Gothic+Coding:wght@400;700&display=swap">
+<style>
+/* 배치: 만화 칸처럼 손으로 그은 테두리의 칸 두 개(코드 / 말풍선 출력)를 나란히 두고,
+   그 아래에 문장 변환기와 울음소리 표를 한 단으로 쌓는다. 전부 왼쪽 정렬. */
+:root {
+  --paper: #fbfbf8;
+  --panel: #ffffff;
+  --ink: #4a3b36;
+  --muted: #86766f;
+  --tone: rgba(74, 59, 54, 0.07);
+  --chi: #ffc6d2;      /* 치이카와의 볼 */
+  --hachi: #abd5f4;    /* 하치와레의 무늬 */
+  --usa: #ffe08a;      /* 우사기 */
+  --chip-ink: #4a3b36;
+  --err: #c93652;
+  --display: "Jua", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --body: "Gowun Dodum", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --code: "Nanum Gothic Coding", "D2Coding", ui-monospace, Menlo, Consolas, monospace;
+  --wobble: 255px 14px 225px 14px / 14px 225px 14px 255px;
+  --wobble-small: 14px 6px 12px 7px / 7px 12px 6px 14px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #1f212a; --panel: #292c38; --ink: #f2eae4; --muted: #aaa2ab;
+    --tone: rgba(242, 234, 228, 0.05); --err: #ff8fa3; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #1f212a; --panel: #292c38; --ink: #f2eae4; --muted: #aaa2ab;
+  --tone: rgba(242, 234, 228, 0.05); --err: #ff8fa3; color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  margin: 0;
+  background-color: var(--paper);
+  background-image: radial-gradient(var(--tone) 1.2px, transparent 1.4px); /* 스크린톤 */
+  background-size: 9px 9px;
+  color: var(--ink);
+  font: 16px/1.65 var(--body);
+}
+.page {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding-block: 28px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid;
+  gap: 28px;
+}
+h1, h2 { font-family: var(--display); font-weight: 400; margin: 0; text-wrap: balance; }
+h1 { font-size: 2.4rem; line-height: 1.1; }
+h2 { font-size: 1.3rem; line-height: 1.3; }
+p { margin: 0; }
+.intro { display: grid; gap: 6px; }
+.intro p { max-width: 38em; }
+.note { color: var(--muted); font-size: 0.9rem; }
+
+.stage { display: grid; gap: 28px; align-items: start; }
+@media (min-width: 860px) { .stage { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); } }
+
+.panel {
+  background: var(--panel);
+  border: 2px solid var(--ink);
+  border-radius: var(--wobble);
+  padding: 20px;
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+.panel-head { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; }
+
+label { font-size: 0.9rem; color: var(--muted); }
+textarea, input[type="text"], select {
+  font: inherit;
+  color: var(--ink);
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  border-radius: var(--wobble-small);
+  padding: 8px 10px;
+  width: 100%;
+  min-width: 0;
+}
+textarea { display: block; resize: vertical; }
+#code { font: 16px/1.7 var(--code); min-height: 15em; }
+#stdin { font-family: var(--code); }
+select { width: auto; max-width: 100%; }
+:focus-visible { outline: 3px solid var(--hachi); outline-offset: 2px; }
+.field { display: grid; gap: 4px; }
+
+button {
+  font: 1rem/1.2 var(--display);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  border-radius: var(--wobble-small);
+  padding: 9px 13px;
+  cursor: pointer;
+  background: var(--panel);
+  touch-action: manipulation;
+}
+button:active:not(:disabled) { transform: translateY(2px); }
+button:disabled { opacity: 0.45; cursor: default; }
+
+/* 울음소리 자판: 색은 누가 내는 소리인지를 뜻한다 */
+.keys { display: flex; flex-wrap: wrap; gap: 8px; }
+.keys button { box-shadow: 0 3px 0 var(--ink); }
+.keys button:active { box-shadow: 0 1px 0 var(--ink); }
+.who-chi { background: var(--chi); color: var(--chip-ink); }
+.who-hachi { background: var(--hachi); color: var(--chip-ink); }
+.who-usa { background: var(--usa); color: var(--chip-ink); }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 0.85rem; color: var(--muted); }
+.legend .who::before {
+  content: ""; display: inline-block; width: 0.8em; height: 0.8em; margin-right: 5px;
+  border: 1.5px solid var(--ink); border-radius: 50%; vertical-align: -0.05em; background: var(--dot);
+}
+
+.actions { display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: center; }
+#run { background: var(--usa); color: var(--chip-ink); font-size: 1.15rem; padding: 10px 22px; box-shadow: 0 3px 0 var(--ink); }
+#run:active:not(:disabled) { box-shadow: 0 1px 0 var(--ink); }
+#status { color: var(--muted); font-size: 0.9rem; }
+
+/* 출력은 말풍선 */
+.bubble {
+  position: relative;
+  background: var(--panel);
+  border: 2px solid var(--ink);
+  border-radius: 52px 64px 48px 60px / 48px 44px 52px 40px;
+  padding: 26px 30px;
+  min-height: 9em;
+  display: grid;
+  align-content: center;
+  min-width: 0;
+}
+.bubble::before, .bubble::after {
+  content: ""; position: absolute; left: 72px; border-style: solid; border-color: transparent;
+}
+.bubble::before { bottom: -24px; border-width: 24px 16px 0 6px; border-top-color: var(--ink); }
+.bubble::after { bottom: -19px; left: 74px; border-width: 21px 13px 0 4px; border-top-color: var(--panel); }
+#output {
+  margin: 0; font: 1.05rem/1.6 var(--code); white-space: pre-wrap; overflow-wrap: anywhere;
+  max-height: 16em; overflow-y: auto;
+}
+#output.empty { color: var(--muted); font-family: var(--body); }
+@keyframes pop { from { transform: scale(0.96); } to { transform: scale(1); } }
+.bubble.pop { animation: pop 0.18s ease-out; }
+@media (prefers-reduced-motion: reduce) { .bubble.pop { animation: none; } button:active:not(:disabled) { transform: none; } }
+.said { display: grid; gap: 34px; min-width: 0; }
+#error { color: var(--err); font-weight: 700; overflow-wrap: anywhere; }
+
+.tape-wrap { display: grid; gap: 6px; min-width: 0; }
+#tape { display: flex; gap: 4px; overflow-x: auto; padding: 2px 2px 8px; }
+.cell {
+  flex: none; width: 3.1em; text-align: center; border: 2px solid var(--ink);
+  border-radius: var(--wobble-small); background: var(--panel); padding: 2px 0 4px;
+  font-variant-numeric: tabular-nums; line-height: 1.25;
+}
+.cell small { display: block; color: var(--muted); font-size: 0.7rem; }
+.cell b { display: block; font: 700 1rem/1.3 var(--code); }
+.cell i { display: block; font: normal 0.8rem/1.2 var(--code); min-height: 1.2em; color: var(--muted); }
+.cell.here { background: var(--usa); color: var(--chip-ink); }
+.cell.here small, .cell.here i { color: var(--chip-ink); }
+
+.row { display: flex; gap: 10px; flex-wrap: wrap; }
+.row input { flex: 1 1 14em; }
+
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; min-width: 38em; }
+th, td { text-align: left; padding: 8px 12px 8px 0; border-bottom: 1.5px dashed var(--muted); vertical-align: top; }
+th { font-family: var(--display); font-weight: 400; color: var(--muted); }
+td code, li code { font-family: var(--code); font-size: 1rem; }
+td:first-child code { font-weight: 700; }
+td:nth-child(-n+2), td:last-child { white-space: nowrap; }
+ul { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; max-width: 44em; }
+footer { color: var(--muted); font-size: 0.85rem; max-width: 46em; }
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="intro">
+    <h1>chiikawa-lang</h1>
+    <p>치이카와 친구들의 울음소리만으로 짜는 장난감 프로그래밍 언어입니다. 아래 코드를 고치거나 울음소리를 눌러 보세요.</p>
+    <p class="note">비공식 팬 작품입니다.</p>
+  </header>
+
+  <main class="stage">
+    <section class="panel" aria-labelledby="code-title">
+      <div class="panel-head">
+        <h2 id="code-title">코드</h2>
+        <select id="example" aria-label="예제 불러오기"></select>
+      </div>
+      <textarea id="code" spellcheck="false" autocapitalize="off" autocomplete="off" aria-labelledby="code-title"></textarea>
+      <div class="keys" id="keys" aria-label="울음소리 자판"></div>
+      <div class="legend" aria-hidden="true">
+        <span class="who" style="--dot: var(--chi)">치이카와</span>
+        <span class="who" style="--dot: var(--hachi)">하치와레</span>
+        <span class="who" style="--dot: var(--usa)">우사기</span>
+        <span>같은 소리를 이어서 누르면 늘어납니다.</span>
+      </div>
+      <div class="field">
+        <label for="stdin">입력 (<code>하?</code>가 한 글자씩 읽습니다)</label>
+        <input type="text" id="stdin" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="actions">
+        <button type="button" id="run">실행</button>
+        <button type="button" id="stop" disabled>정지</button>
+        <span id="status" role="status"></span>
+      </div>
+    </section>
+
+    <section class="said" aria-labelledby="out-title">
+      <h2 id="out-title">출력</h2>
+      <div class="bubble" id="bubble"><pre id="output" aria-live="polite"></pre></div>
+      <p id="error" role="alert" hidden></p>
+      <div class="tape-wrap">
+        <label id="tape-label">테이프 (노란 칸이 지금 가리키는 칸)</label>
+        <div id="tape" role="list" aria-labelledby="tape-label" tabindex="0"></div>
+      </div>
+    </section>
+  </main>
+
+  <section class="panel" aria-labelledby="gen-title">
+    <h2 id="gen-title">문장을 코드로 바꾸기</h2>
+    <p>직접 짜기는 어렵습니다. 문장을 넣으면 그 문장을 말하는 코드를 만들어 줍니다.</p>
+    <form class="row" id="gen">
+      <input type="text" id="phrase" aria-labelledby="gen-title" value="어떻게든 돼라!" autocomplete="off">
+      <button type="submit">코드로 바꾸기</button>
+    </form>
+  </section>
+
+  <section class="panel" aria-labelledby="ref-title">
+    <h2 id="ref-title">울음소리 표</h2>
+    <p>칸 30,000개가 한 줄로 늘어선 테이프와, 그중 한 칸을 가리키는 포인터가 있습니다. 칸에는 0부터 255까지 들어가고 넘치면 돌아갑니다.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>울음소리</th><th>누가</th><th>하는 일</th><th>늘여 말하면</th></tr></thead>
+        <tbody id="ref"></tbody>
+      </table>
+    </div>
+    <ul>
+      <li>울음소리 사이는 띄어 씁니다. <code>!</code> <code>~</code> <code>…</code> <code>.</code> <code>,</code> <code>♪</code>는 마음껏 붙여도 됩니다.</li>
+      <li><code>#</code>부터 줄 끝까지는 주석입니다.</li>
+      <li>그 밖의 글자를 쓰면 울어버립니다(오류).</li>
+    </ul>
+  </section>
+
+  <footer>
+    비공식 팬 작품입니다. 「치이카와」와 등장 캐릭터의 권리는 원작자 나가노와 각 권리자에게 있고, 이 프로젝트는 그들과 관계가 없습니다. 원작의 그림은 쓰지 않았습니다.
+  </footer>
+</div>
+
+<script>
+(() => {
+// core는 자기만의 스코프에 넣어 이 페이지의 이름과 부딪히지 않게 한다.
+const { parse, Machine, ChiikawaError, encodeText } = (() => {
+/*__CORE__*/
+return { parse, Machine, ChiikawaError, encodeText };
+})();
+
+const EXAMPLES = /*__EXAMPLES__*/{};
+
+// [파일 이름, 보여 줄 이름, 입력 칸에 넣을 값]
+const EXAMPLE_LIST = [
+  ['annyeong', '안녕, 치이카와!', ''],
+  ['hello', 'Hello, World!', ''],
+  ['countdown', '9부터 0까지 세기', ''],
+  ['triangle', '별 삼각형', ''],
+  ['cat', '따라 말하기 (입력을 읽음)', '우라! 야하!'],
+  ['reverse', '거꾸로 말하기 (입력을 읽음)', 'chiikawa'],
+];
+
+// tail: 커서 앞이 이 울음소리로 끝나는지. stretch: 한 번 더 늘인 모양.
+const CRIES = [
+  { say: '야하', who: 'usa', does: '지금 칸에 1을 더한다', long: '야하하하 = +3', tail: /야하+$/, stretch: (s) => s + '하' },
+  { say: '싫어', who: 'chi', does: '지금 칸에서 1을 뺀다', long: '싫어어어 = −3', tail: /싫어+$/, stretch: (s) => s + '어' },
+  { say: '우라', who: 'usa', does: '오른쪽 칸으로 간다', long: '우라라라 = 3칸', tail: /우라+$/, stretch: (s) => s + '라' },
+  { say: '후웅', who: 'usa', does: '왼쪽 칸으로 간다', long: '후우우웅 = 3칸', tail: /후우*웅$/, stretch: (s) => s.slice(0, -1) + '우웅' },
+  { say: '와', who: 'chi', does: '지금 칸을 글자로 말한다(출력)', long: '와아아 = 3번', tail: /와아*$/, stretch: (s) => s + '아' },
+  { say: '하?', who: 'usa', does: '입력에서 한 글자를 지금 칸에 받는다. 입력이 끝났으면 0', long: '하아아? = 3번', tail: /하아*\?$/, stretch: (s) => s.slice(0, -1) + '아?' },
+  { say: '라는 거?!', who: 'hachi', does: '지금 칸이 0이면 짝이 되는 "어떻게든 돼라" 뒤로 건너뛴다', long: '' },
+  { say: '어떻게든 돼라', who: 'hachi', does: '지금 칸이 0이 아니면 짝이 되는 "라는 거?!" 뒤로 돌아간다', long: '' },
+  { say: '울어버렸다', who: 'hachi', does: '프로그램을 바로 끝낸다', long: '' },
+];
+const WHO = { chi: '치이카와', hachi: '하치와레', usa: '우사기' };
+
+const $ = (id) => document.getElementById(id);
+const code = $('code'), stdin = $('stdin'), output = $('output'), bubble = $('bubble');
+const errorEl = $('error'), statusEl = $('status'), runBtn = $('run'), stopBtn = $('stop');
+const tapeEl = $('tape'), exampleSel = $('example');
+
+const STEPS_PER_TICK = 200000;
+const MAX_OUTPUT = 100000;
+const DRAFT_KEY = 'chiikawa-lang:code';
+
+const saveDraft = () => { try { localStorage.setItem(DRAFT_KEY, code.value); } catch {} };
+const loadDraft = () => { try { return localStorage.getItem(DRAFT_KEY) || ''; } catch { return ''; } };
+
+// ── 실행: 조금씩 나눠 돌려서 끝나지 않는 프로그램도 정지할 수 있게 한다 ──
+let job = null;
+
+function start() {
+  stop('');
+  errorEl.hidden = true;
+  let program;
+  try {
+    program = parse(code.value);
+  } catch (e) {
+    if (!(e instanceof ChiikawaError)) throw e;
+    showOutput([]);
+    showError(e.message);
+    return;
+  }
+  const input = new TextEncoder().encode(stdin.value);
+  let at = 0;
+  const bytes = [];
+  const machine = new Machine(program, {
+    input: () => (at < input.length ? input[at++] : null),
+    output: (b) => bytes.push(b),
+  });
+  job = { machine, bytes, timer: 0 };
+  runBtn.disabled = true;
+  stopBtn.disabled = false;
+  statusEl.textContent = '실행 중…';
+  tick();
+}
+
+function tick() {
+  const j = job;
+  if (!j) return;
+  let state;
+  try {
+    state = j.machine.run(STEPS_PER_TICK);
+  } catch (e) {
+    if (!(e instanceof ChiikawaError)) throw e;
+    stop('');
+    showError(e.message);
+    return;
+  }
+  if (j.bytes.length > MAX_OUTPUT) stop('말이 너무 길어서 멈췄습니다.');
+  else if (state === 'done') stop('끝났습니다.');
+  else {
+    showOutput(j.bytes);
+    showTape(j.machine);
+    j.timer = setTimeout(tick, 0);
+  }
+}
+
+function stop(message) {
+  const j = job;
+  if (!j) return;
+  clearTimeout(j.timer);
+  job = null;
+  runBtn.disabled = false;
+  stopBtn.disabled = true;
+  statusEl.textContent = message;
+  showOutput(j.bytes);
+  showTape(j.machine);
+  bubble.classList.remove('pop');
+  void bubble.offsetWidth;
+  bubble.classList.add('pop');
+}
+
+function showOutput(bytes) {
+  const text = new TextDecoder().decode(new Uint8Array(bytes.slice(0, MAX_OUTPUT)));
+  output.classList.toggle('empty', text === '');
+  output.textContent = text === '' ? (job ? '…' : '(아무 말도 하지 않았습니다)') : text;
+}
+
+function showError(message) {
+  errorEl.textContent = message;
+  errorEl.hidden = false;
+  statusEl.textContent = '';
+}
+
+function showTape(machine) {
+  const { tape, ptr } = machine;
+  let last = Math.max(ptr, 9);
+  for (let i = Math.min(tape.length, 200) - 1; i > last; i--) if (tape[i] !== 0) { last = i; break; }
+  const first = Math.max(0, ptr - 199); // 포인터가 아주 멀리 가도 칸 200개만 그린다
+  tapeEl.textContent = '';
+  let here = null;
+  for (let i = first; i <= Math.max(last, ptr); i++) {
+    const v = tape[i];
+    const cell = document.createElement('div');
+    cell.className = 'cell' + (i === ptr ? ' here' : '');
+    cell.setAttribute('role', 'listitem');
+    if (i === ptr) { cell.setAttribute('aria-current', 'true'); here = cell; }
+    const n = document.createElement('small'); n.textContent = i;
+    const b = document.createElement('b'); b.textContent = v;
+    const c = document.createElement('i'); c.textContent = v > 32 && v < 127 ? String.fromCharCode(v) : '';
+    cell.append(n, b, c);
+    tapeEl.append(cell);
+  }
+  if (here) tapeEl.scrollLeft = Math.max(0, here.offsetLeft - tapeEl.offsetLeft - tapeEl.clientWidth / 2);
+}
+
+// ── 울음소리 자판 ──
+function typeCry(cry) {
+  const start = code.selectionStart, end = code.selectionEnd;
+  const before = code.value.slice(0, start);
+  const m = start === end && cry.tail ? before.match(new RegExp('(?<=^|\\s)' + cry.tail.source)) : null;
+  if (m) code.setRangeText(cry.stretch(m[0]), start - m[0].length, start, 'end');
+  else code.setRangeText((before === '' || /\s$/.test(before) ? '' : ' ') + cry.say, start, end, 'end');
+  saveDraft();
+}
+
+function typeNewline() {
+  code.setRangeText('\n', code.selectionStart, code.selectionEnd, 'end');
+  saveDraft();
+}
+
+function eraseWord() {
+  let start = code.selectionStart;
+  const end = code.selectionEnd;
+  if (start === end) {
+    const before = code.value.slice(0, start);
+    start = before.length - (before.match(/\S+\s*$|\s+$/)?.[0].length ?? 0);
+  }
+  code.setRangeText('', start, end, 'end');
+  saveDraft();
+}
+
+function addKey(label, className, onPress, hint) {
+  const key = document.createElement('button');
+  key.type = 'button';
+  key.textContent = label;
+  key.className = className;
+  if (hint) key.title = hint;
+  key.addEventListener('pointerdown', (e) => e.preventDefault()); // 편집기의 커서와 키보드 상태를 그대로 둔다
+  key.addEventListener('click', onPress);
+  $('keys').append(key);
+}
+
+for (const cry of CRIES) {
+  addKey(cry.say, 'who-' + cry.who, () => typeCry(cry), `${WHO[cry.who]}: ${cry.does}`);
+  const row = $('ref').insertRow();
+  const say = document.createElement('code');
+  say.textContent = cry.say;
+  row.insertCell().append(say);
+  row.insertCell().textContent = WHO[cry.who];
+  row.insertCell().textContent = cry.does;
+  const long = document.createElement('code');
+  long.textContent = cry.long;
+  row.insertCell().append(long);
+}
+addKey('줄바꿈', 'plain', typeNewline);
+addKey('한 마디 지우기', 'plain', eraseWord);
+
+// ── 예제와 문장 변환 ──
+const placeholder = new Option('예제 불러오기', '');
+placeholder.disabled = true;
+exampleSel.append(placeholder);
+for (const [name, label] of EXAMPLE_LIST) exampleSel.append(new Option(label, name));
+
+function loadExample(name) {
+  const [, , input] = EXAMPLE_LIST.find(([n]) => n === name);
+  code.value = EXAMPLES[name];
+  stdin.value = input;
+  saveDraft();
+  start();
+}
+
+exampleSel.addEventListener('change', () => loadExample(exampleSel.value));
+code.addEventListener('input', saveDraft);
+runBtn.addEventListener('click', start);
+stopBtn.addEventListener('click', () => stop('정지했습니다.'));
+$('gen').addEventListener('submit', (e) => {
+  e.preventDefault();
+  code.value = encodeText($('phrase').value);
+  exampleSel.value = '';
+  saveDraft();
+  start();
+  code.scrollIntoView({ block: 'nearest' });
+});
+
+const draft = loadDraft();
+if (draft.trim()) {
+  code.value = draft;
+  exampleSel.value = '';
+  start();
+} else {
+  exampleSel.value = 'annyeong';
+  loadExample('annyeong');
+}
+})();
+</script>
+</body>
+</html>
