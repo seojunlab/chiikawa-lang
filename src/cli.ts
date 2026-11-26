@@ -24,6 +24,8 @@ function writeAll(fd: number, bytes: Uint8Array): void {
     try {
       at += writeSync(fd, bytes, at);
     } catch (e) {
+      // 받는 쪽이 먼저 닫았으면(예: `| head`) 더 말할 곳이 없으니 조용히 끝낸다.
+      if (errorCode(e) === 'EPIPE') process.exit(0);
       if (errorCode(e) !== 'EAGAIN') throw e;
       nap();
     }
@@ -37,6 +39,9 @@ class Stdin {
   private at = 0;
   private len = 0;
   private ended = false;
+  /** 지금까지 읽어 간 바이트 수와 마지막으로 읽어 간 바이트. */
+  count = 0;
+  last: number | null = null;
 
   /** 다음 바이트. 입력이 끝났으면 null. */
   byte(): number | null {
@@ -52,7 +57,8 @@ class Stdin {
         else throw e;
       }
     }
-    return this.buf[this.at++];
+    this.count++;
+    return (this.last = this.buf[this.at++]);
   }
 
   /** 줄바꿈 전까지 한 줄. 더 읽을 게 없으면 null. */
@@ -136,17 +142,24 @@ function repl(): void {
       return;
     }
     stdout.last = null;
+    const readBefore = stdin.count;
+    // '하?'가 입력 줄의 일부만 읽었으면 나머지는 버린다. 안 그러면 다음 코드 줄로 실행돼 버린다.
+    const dropRestOfInputLine = () => {
+      if (stdin.count !== readBefore && stdin.last !== 10) stdin.line();
+    };
     try {
       const machine = new Machine(parse(line), io, state);
       state = machine; // 다음 줄이 테이프와 포인터를 이어받는다
       machine.run();
       stdout.flush();
+      dropRestOfInputLine();
       if (stdout.last !== null && stdout.last !== 10) print(1, '\n');
       if (machine.halted) return;
       if (machine.pc > 0) print(1, `[${machine.ptr}번 칸 = ${machine.tape[machine.ptr]}]\n`);
     } catch (e) {
       stdout.flush();
       if (!(e instanceof ChiikawaError)) throw e;
+      dropRestOfInputLine();
       if (stdout.last !== null && stdout.last !== 10) print(1, '\n');
       print(2, e.message + '\n');
     }

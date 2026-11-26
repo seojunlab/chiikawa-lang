@@ -47,7 +47,7 @@ const isBoundary = (ch: string | undefined) =>
   ch === undefined || ch === '#' || isSpace(ch) || DECORATION.includes(ch);
 
 export function parse(source: string): Op[] {
-  const src = source.normalize('NFC').replace(/^﻿/, '');
+  const src = source.normalize('NFC').replace(/^\uFEFF/, '');
   const ops: Op[] = [];
   const opens: number[] = [];
   let line = 1;

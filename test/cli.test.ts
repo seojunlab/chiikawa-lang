@@ -103,3 +103,18 @@ test('help', () => {
   assert.equal(r.code, 0);
   assert.match(r.out.toString(), /사용법/);
 });
+
+test('run: 받는 쪽이 파이프를 닫으면 조용히 끝난다', () => {
+  const loop = file('loop.chiikawa', '야하하하하하하하하하하 라는 거?! 와 어떻게든 돼라');
+  const r = spawnSync('sh', ['-c', `"${process.execPath}" src/cli.ts run "${loop}" | head -n 2`], { timeout: 20000 });
+  assert.equal(r.stdout.toString(), '\n\n');
+  assert.equal(r.stderr.toString(), '');
+});
+
+test('repl: 하?가 읽고 남은 입력 줄은 코드로 실행하지 않는다', () => {
+  const r = cli(['repl'], '하? 와\n안녕\n야하\n');
+  const out = r.out.toString('latin1');
+  const at = ['[0번 칸 = 236]', '[0번 칸 = 237]'].map((s) => out.indexOf(Buffer.from(s).toString('latin1')));
+  assert.ok(at[0] >= 0 && at[0] < at[1], r.out.toString());
+  assert.equal(r.err, '');
+});

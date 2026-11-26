@@ -36,7 +36,9 @@ test('위치는 1부터', () => {
 });
 
 test('BOM과 자모 분리 한글', () => {
-  assert.deepEqual(kinds('﻿' + '야하 우라'.normalize('NFD')), [['add', 1], ['move', 1]]);
+  assert.deepEqual(kinds('\uFEFF' + '야하 우라'.normalize('NFD')), [['add', 1], ['move', 1]]);
+  // BOM은 공백으로 넘기는 게 아니라 버려야 위치가 밀리지 않는다
+  assert.throws(() => parse('\uFEFF냐옹'), /1번째 줄 1번째 글자/);
 });
 
 test('오류', () => {
