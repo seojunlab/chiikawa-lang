@@ -190,3 +190,90 @@ export function run(source: string, input: string | Uint8Array = ''): string {
   }).run();
   return new TextDecoder().decode(new Uint8Array(out));
 }
+
+type BfChar = '+' | '-' | '>' | '<' | '.' | ',';
+
+/** n번 늘여 말한 울음소리 하나. */
+function cry(bf: BfChar, n: number): string {
+  switch (bf) {
+    case '+': return '야' + '하'.repeat(n);
+    case '-': return '싫' + '어'.repeat(n);
+    case '>': return '우' + '라'.repeat(n);
+    case '<': return '후' + '우'.repeat(n - 1) + '웅';
+    case '.': return '와' + '아'.repeat(n - 1);
+    case ',': return '하' + '아'.repeat(n - 1) + '?';
+  }
+}
+
+/** Brainfuck 프로그램을 chiikawa-lang으로 옮긴다. 명령이 아닌 글자는 버린다. */
+export function fromBrainfuck(bf: string): string {
+  const lines: string[] = [];
+  let words: string[] = [];
+  let depth = 0;
+  const flush = () => {
+    if (words.length) lines.push('  '.repeat(depth) + words.join(' '));
+    words = [];
+  };
+
+  const code = bf.replace(/[^-+<>.,[\]]/g, '');
+  for (let i = 0; i < code.length; ) {
+    const ch = code[i];
+    if (ch === '[') {
+      flush();
+      lines.push('  '.repeat(depth++) + '라는 거?!');
+      i++;
+    } else if (ch === ']') {
+      flush();
+      depth = Math.max(0, depth - 1);
+      lines.push('  '.repeat(depth) + '어떻게든 돼라');
+      i++;
+    } else {
+      let n = 1;
+      while (code[i + n] === ch) n++;
+      words.push(cry(ch as BfChar, n));
+      i += n;
+    }
+  }
+  flush();
+  return lines.map((l) => l + '\n').join('');
+}
+
+/** 현재 칸(1번)의 값을 d만큼 바꾸는 울음소리들. 큰 차이는 0번 칸을 카운터로 쓴 곱셈으로 만든다. */
+function changeBy(d: number): string[] {
+  const size = Math.abs(d);
+  const up: BfChar = d > 0 ? '+' : '-';
+  const down: BfChar = d > 0 ? '-' : '+';
+  if (size === 0) return [];
+  if (size <= 15) return [cry(up, size)];
+
+  let best = { a: 0, b: 0, c: 0, cost: Infinity };
+  for (let a = 2; a <= 16; a++) {
+    for (const b of [Math.floor(size / a), Math.ceil(size / a)]) {
+      const c = size - a * b;
+      const cost = a + b + Math.abs(c);
+      if (cost < best.cost) best = { a, b, c, cost };
+    }
+  }
+  const { a, b, c } = best;
+  const words = ['후웅', cry('+', a), '라는 거?!', '우라', cry(up, b), '후웅', '싫어', '어떻게든 돼라', '우라'];
+  if (c !== 0) words.push(cry(c > 0 ? up : down, Math.abs(c)));
+  return words;
+}
+
+/** 실행하면 text를 그대로 출력하는 프로그램을 만든다. 글자마다 한 줄. */
+export function encodeText(text: string): string {
+  if (text === '') return '';
+  const encoder = new TextEncoder();
+  const lines = ['우라'];
+  let value = 0;
+  for (const ch of text) {
+    const words: string[] = [];
+    for (const byte of encoder.encode(ch)) {
+      const d = ((byte - value + 128 + 256) % 256) - 128; // 돌아가는 쪽까지 쳐서 가까운 방향
+      words.push(...changeBy(d), '와');
+      value = byte;
+    }
+    lines.push(`${words.join(' ')}  # ${JSON.stringify(ch)}`);
+  }
+  return lines.map((l) => l + '\n').join('');
+}
